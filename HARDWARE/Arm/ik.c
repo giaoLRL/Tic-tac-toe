@@ -7,14 +7,16 @@
 static IK_Calib calib = {
     DEFAULT_BASE_OFFSET,
     DEFAULT_SHOULDER_OFFSET,
-    DEFAULT_ELBOW_OFFSET
+    DEFAULT_ELBOW_OFFSET,
+    DEFAULT_WRIST_OFFSET
 };
 
-void IK_SetCalib(uint16 base, uint16 shoulder, uint16 elbow)
+void IK_SetCalib(uint16 base, uint16 shoulder, uint16 elbow, uint16 wrist)
 {
     calib.base_offset     = base;
     calib.shoulder_offset = shoulder;
     calib.elbow_offset    = elbow;
+    calib.wrist_offset    = wrist;
 }
 
 uint16 IK_RadToPWM(float rad)
@@ -35,7 +37,7 @@ uint16 IK_RadToPWM(float rad)
 }
 
 /*
- * 三自由度机械臂逆运动学求解
+ * 四自由度机械臂逆运动学求解（含腕部俯仰补偿）
  *
  * 坐标系（右手系）:
  *   原点 = 底座旋转轴在桌面上的投影
@@ -47,12 +49,14 @@ uint16 IK_RadToPWM(float rad)
  *   θ1 = 底座旋转角 (绕 z 轴), 0 = 正前方
  *   θ2 = 大臂俯仰角 (相对水平面), 0 = 水平, 正 = 向上
  *   θ3 = 小臂俯仰角 (相对大臂延长线), 0 = 伸直, 正 = 向上弯
+ *   θ4 = 腕部俯仰角 (相对小臂), 0 = 与小臂共线
+ *        由 IK 自动求解: θ4 = -π/2 - (θ2+θ3), 使末端吸盘垂直向下
  */
 int IK_Solve(float x, float y, float z,
-             uint16 *s1, uint16 *s2, uint16 *s3)
+             uint16 *s1, uint16 *s2, uint16 *s3, uint16 *s4)
 {
     float r, d, z_rel;
-    float theta1, theta2, theta3;
+    float theta1, theta2, theta3, theta4;
     float cos_theta3, sin_theta3;
     float alpha, beta;
 
@@ -88,20 +92,30 @@ int IK_Solve(float x, float y, float z,
     beta  = atan2f(L2 * sin_theta3, L1 + L2 * cos_theta3);
     theta2 = alpha - beta;          /* elbow-down 配置 */
 
-	/* ---- 5. 角度 → PWM ---- */
+	/* ---- 5. 腕部俯仰角 (保持末端吸盘垂直向下) ---- */
+	/* 末端(小臂)方向角 = θ2 + θ3
+	 * 要求末端方向 = -π/2 (垂直向下)
+	 * θ4 = -π/2 - (θ2 + θ3)
+	 * ⚠ 符号与常量依赖物理装配方向, 需实物标定 */
+	theta4 = -(theta2 + theta3) - 1.57079633f;
+
+	/* ---- 6. 角度 → PWM ---- */
 	/*
 	 * 底座 (270°舵机, 零位 PWM=2150): PWM = 2150 - theta1 × 424.41
 	 * 大臂 (270°舵机, 零位 PWM=1500):   PWM = 1500 - theta2 × 424.41
 	 * 小臂 (270°舵机, 垂直 PWM=1167):  PWM = 1167 + (θ3 - π/2) × 424.41
 	 *   θ3=90°(垂直) → 1167, θ3=0°(伸直) → 500, θ3=180°(折叠) → 1833
+	 * 腕部 (270°舵机, 零位 PWM=1500):  PWM = 1500 - θ4 × 424.41
 	 */
 	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) */
 	#define SHOULDER_SCALE  424.41f
 	#define ELBOW_SCALE     424.41f    /* 2000 / (270°→rad) */
-	
+	#define WRIST_SCALE     424.41f    /* 2000 / (270°→rad) */
+
 	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
 	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);
 	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 1.57079633f) * ELBOW_SCALE);  /* 以垂直为基准 */
+	*s4 = (uint16)((float)calib.wrist_offset    - theta4 * WRIST_SCALE);
 
     /* 限幅 */
     if (*s1 < SERVO_MIN) *s1 = SERVO_MIN;
@@ -110,6 +124,8 @@ int IK_Solve(float x, float y, float z,
     if (*s2 > SERVO_MAX) *s2 = SERVO_MAX;
     if (*s3 < SERVO_MIN) *s3 = SERVO_MIN;
     if (*s3 > SERVO_MAX) *s3 = SERVO_MAX;
+    if (*s4 < SERVO_MIN) *s4 = SERVO_MIN;
+    if (*s4 > SERVO_MAX) *s4 = SERVO_MAX;
 
     return 0;
 }

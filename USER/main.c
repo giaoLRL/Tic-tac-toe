@@ -1,12 +1,13 @@
 /**
- *  三自由度机械臂控制器
+ *  四自由度机械臂控制器（含腕部俯仰补偿）
  *
  *  功能:  接收串口坐标指令 → 逆运动学解算 → 插补移动到目标
+ *         腕部舵机由 IK 自动求解, 保持末端吸盘始终垂直向下
  *  协议:
- *    #PWM,1500,1600,1200\r\n  → 直接设置 3 路 PWM
- *    #POS,120,80,5\r\n        → 世界坐标 (mm), 走 IK
- *    #HOME\r\n                → 归位
- *    #CAL,1500,1500,1500\r\n  → 标定偏移
+ *    #PWM,1500,1600,1200,1500\r\n  → 直接设置 4 路 PWM (底座/大臂/小臂/腕部)
+ *    #POS,120,80,5\r\n             → 世界坐标 (mm), 走 IK (含腕部补偿)
+ *    #HOME\r\n                     → 归位
+ *    #CAL,1500,1500,1500,1500\r\n  → 标定偏移 (base/shoulder/elbow/wrist)
  *
  *  架构:  插补在主循环中按 20ms 节拍执行, 串口指令在中断中解析
  *         ISR 只设标志不阻塞, 所有 UART 发送在主循环完成
@@ -41,7 +42,7 @@ static Planner planner;
 #define DEFAULT_DURATION_MS  500
 
 /* ========== 前向声明 ========== */
-static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 duration_ms);
+static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 s4, uint16 duration_ms);
 static uint8 Planner_Tick(void);
 static void Exec_Cmd(void);
 
@@ -58,13 +59,14 @@ int main(void)
 
     Led_Test();
 
-    UART_PutStr(USART1, "Arm Ready\r\n");
-    UART_PutStr(USART1, "Commands: #PWM,s1,s2,s3 | #POS,x,y,z | #HOME | #CAL,b,s,e\r\n");
+    UART_PutStr(USART1, "Arm Ready (4DOF)\r\n");
+    UART_PutStr(USART1, "Commands: #PWM,s1,s2,s3,s4 | #POS,x,y,z | #HOME | #CAL,b,s,e,w\r\n");
     UART_PutStr(USART1, "Test: #TEST | #TSEQ,0,4,8 | #TGRAB,x,y | #TSTOP\r\n");
 
     /*
-     * CPWM 初始值已为 {1500,1500,1500} (servor.c 中定义),
-     * 上电时舵机保持中位, 无需额外归位动作。
+     * CPWM 初始值已为 {2150,1500,500,1500} (servor.c 中定义),
+     * 上电时舵机保持各零位, 无需额外归位动作。
+     * 腕部(CPWM[4]=1500)上电为机械中位, 第一条 #POS 指令后由 IK 自动解算到位。
      */
 
     /* 上电自动启动默认抓取测试 */
@@ -101,13 +103,13 @@ int main(void)
  *  插补器
  * ================================================================ */
 
-static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 duration_ms)
+static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 s4, uint16 duration_ms)
 {
     int i;
-    uint16 diff[4], max_diff = 0;
-    uint16 target[4];
+    uint16 diff[5], max_diff = 0;
+    uint16 target[5];
 
-    target[1] = s1; target[2] = s2; target[3] = s3;
+    target[1] = s1; target[2] = s2; target[3] = s3; target[4] = s4;
 
     /* 限幅 */
     for (i = 1; i <= SERVO_NUM; i++) {
@@ -194,40 +196,40 @@ static void Exec_Cmd(void)
 {
     uint8  type;
     float  x, y, z;
-    uint16 s1, s2, s3;
+    uint16 s1, s2, s3, s4;
 
     /* 原子快照: 关中断一次性拷贝所有共享变量 */
     __disable_irq();
     type = cmd_type;
     x = target_x; y = target_y; z = target_z;
-    s1 = target_s1; s2 = target_s2; s3 = target_s3;
+    s1 = target_s1; s2 = target_s2; s3 = target_s3; s4 = target_s4;
     cmd_type = 0;
     __enable_irq();
 
     switch (type) {
 
-    case 1: /* #PWM,s1,s2,s3 */
-        Planner_Start(s1, s2, s3, DEFAULT_DURATION_MS);
+    case 1: /* #PWM,s1,s2,s3,s4 */
+        Planner_Start(s1, s2, s3, s4, DEFAULT_DURATION_MS);
         break;
 
     case 2: /* #POS,x,y,z */
         {
-            uint16 ik_s1, ik_s2, ik_s3;
-            int ret = IK_Solve(x, y, z, &ik_s1, &ik_s2, &ik_s3);
+            uint16 ik_s1, ik_s2, ik_s3, ik_s4;
+            int ret = IK_Solve(x, y, z, &ik_s1, &ik_s2, &ik_s3, &ik_s4);
             if (ret == 0) {
-                Planner_Start(ik_s1, ik_s2, ik_s3, DEFAULT_DURATION_MS);
+                Planner_Start(ik_s1, ik_s2, ik_s3, ik_s4, DEFAULT_DURATION_MS);
             } else {
                 UART_PutStr(USART1, "ERR IK FAIL\r\n");
             }
         }
         break;
 
-    case 3: /* #CAL,b,s,e */
-        IK_SetCalib(s1, s2, s3);
+    case 3: /* #CAL,b,s,e,w */
+        IK_SetCalib(s1, s2, s3, s4);
         break;
 
     case 4: /* #HOME */
-        Planner_Start(SERVO_MID, SERVO_MID, SERVO_MID, 1000);
+        Planner_Start(SERVO_MID, SERVO_MID, SERVO_MID, SERVO_MID, 1000);
         break;
 
     default:

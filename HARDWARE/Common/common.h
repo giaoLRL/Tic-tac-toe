@@ -10,7 +10,7 @@
 #define uint32  unsigned int
 
 /* ========== 舵机数量 ========== */
-#define SERVO_NUM   3
+#define SERVO_NUM   4
 
 /* ========== 舵机 PWM 范围 ========== */
 /* 180° 舵机: 500~2500us 对应 0°~180°

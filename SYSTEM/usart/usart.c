@@ -8,7 +8,7 @@
 /* ========== 全局变量 (ISR 共享, 全部 volatile) ========== */
 volatile uint8  flag_RecFul = 0;
 volatile uint8  cmd_type    = 0;
-volatile uint16 target_s1, target_s2, target_s3;
+volatile uint16 target_s1, target_s2, target_s3, target_s4;
 volatile float  target_x, target_y, target_z;
 
 /* 响应机制: ISR 只设标志和消息, 主循环负责 UART_PutStr */
@@ -118,7 +118,7 @@ static void SetResp(const char *msg)
 /* ========== 协议解析 (中断上下文中调用, 不阻塞) ========== */
 static void ParseCmd(char *str)
 {
-    int a, b, c;
+    int a, b, c, d;
     int n;
 
     /* 去除末尾 \r\n */
@@ -127,22 +127,23 @@ static void ParseCmd(char *str)
     p = strchr(str, '\n');
     if (p) *p = 0;
 
-    /* --- #PWM,s1,s2,s3 --- */
+    /* --- #PWM,s1,s2,s3,s4 --- */
     if (strncmp(str, "#PWM,", 5) == 0) {
-        n = sscanf(str, "#PWM,%d,%d,%d", &a, &b, &c);
-        if (n != 3) {
+        n = sscanf(str, "#PWM,%d,%d,%d,%d", &a, &b, &c, &d);
+        if (n != 4) {
             SetResp("ERR FORMAT\r\n");
             return;
         }
-        /* 范围检查: 防止负数或溢出值损坏舵机 */
-        if (a < 500 || a > 2500 || b < 500 || b > 2500 ||
-            c < 500 || c > 2500) {
+        /* 范围检查: 防止负数或溢出值损坏舵机 (统一用 SERVO_MIN/SERVO_MAX 宏) */
+        if (a < SERVO_MIN || a > SERVO_MAX || b < SERVO_MIN || b > SERVO_MAX ||
+            c < SERVO_MIN || c > SERVO_MAX || d < SERVO_MIN || d > SERVO_MAX) {
             SetResp("ERR RANGE\r\n");
             return;
         }
         target_s1 = (uint16)a;
         target_s2 = (uint16)b;
         target_s3 = (uint16)c;
+        target_s4 = (uint16)d;
         cmd_type = 1;
         SetResp("OK PWM\r\n");
         return;
@@ -160,22 +161,23 @@ static void ParseCmd(char *str)
         return;
     }
 
-    /* --- #CAL,off1,off2,off3 --- */
+    /* --- #CAL,off1,off2,off3,off4 --- */
     if (strncmp(str, "#CAL,", 5) == 0) {
-        n = sscanf(str, "#CAL,%d,%d,%d", &a, &b, &c);
-        if (n != 3) {
+        n = sscanf(str, "#CAL,%d,%d,%d,%d", &a, &b, &c, &d);
+        if (n != 4) {
             SetResp("ERR FORMAT\r\n");
             return;
         }
         /* 范围检查 */
-        if (a < 500 || a > 2500 || b < 500 || b > 2500 ||
-            c < 500 || c > 2500) {
+        if (a < SERVO_MIN || a > SERVO_MAX || b < SERVO_MIN || b > SERVO_MAX ||
+            c < SERVO_MIN || c > SERVO_MAX || d < SERVO_MIN || d > SERVO_MAX) {
             SetResp("ERR RANGE\r\n");
             return;
         }
         target_s1 = (uint16)a;
         target_s2 = (uint16)b;
         target_s3 = (uint16)c;
+        target_s4 = (uint16)d;
         cmd_type = 3;
         SetResp("OK CAL\r\n");
         return;

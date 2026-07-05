@@ -12,7 +12,7 @@ void UART_PutStr (USART_TypeDef *USARTx, char *str);
 
 /* ---- ISR 与主循环共享变量 (全部 volatile, 读时关中断) ---- */
 extern volatile uint8  cmd_type;
-extern volatile uint16 target_s1, target_s2, target_s3;
+extern volatile uint16 target_s1, target_s2, target_s3, target_s4;
 extern volatile float  target_x, target_y, target_z;
 
 /* 响应机制: ISR 只设标志, 主循环负责发送 (避免 ISR 中阻塞轮询) */
