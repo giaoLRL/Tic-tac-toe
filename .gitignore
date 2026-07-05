@@ -1,0 +1,33 @@
+# 编译产物
+Output/
+Listing/
+*.o
+*.d
+*.crf
+*.axf
+*.hex
+*.lnp
+*.plg
+*.tra
+*.htm
+*.sct
+*.map
+*.lst
+*.dep
+*.__i
+
+# Keil 工程临时文件
+*.uvgui.*
+*.uvopt
+*.bak
+*.Administrator
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 其他
+Desktop.ini
