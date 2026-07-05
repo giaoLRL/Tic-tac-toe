@@ -121,7 +121,19 @@ static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 duration_ms)
         if (diff[i] > max_diff) max_diff = diff[i];
     }
 
-    if (max_diff == 0) return;  /* 已在目标位置 */
+    if (max_diff == 0) {
+        planner.running = 1;
+        planner_busy = 1;
+        __disable_irq();
+        for (i = 1; i <= SERVO_NUM; i++) {
+            CPWM[i] = target[i];
+        }
+        __enable_irq();
+        planner.running = 0;
+        planner_busy = 0;
+        UART_PutStr(USART1, "DONE\r\n");
+        return;
+    }
 
     if (duration_ms == 0) duration_ms = DEFAULT_DURATION_MS;
     planner.total_steps = duration_ms / INTERP_MS;

@@ -63,7 +63,11 @@ void Flip_GPIO_One(void)
         GPIO_SetBits(GPIOB, GPIO_Pin_15);
         break;
     case 2:
-        TIM2->ARR = MAXPWM - CPWM[1];
+        {
+            uint16 low = MAXPWM - CPWM[1];
+            if (low < MIN_LOW_TIME) low = MIN_LOW_TIME;
+            TIM2->ARR = low;
+        }
         GPIO_ResetBits(GPIOB, GPIO_Pin_15);
         break;
 
@@ -73,7 +77,11 @@ void Flip_GPIO_One(void)
         GPIO_SetBits(GPIOA, GPIO_Pin_8);
         break;
     case 4:
-        TIM2->ARR = MAXPWM - CPWM[2];
+        {
+            uint16 low = MAXPWM - CPWM[2];
+            if (low < MIN_LOW_TIME) low = MIN_LOW_TIME;
+            TIM2->ARR = low;
+        }
         GPIO_ResetBits(GPIOA, GPIO_Pin_8);
         break;
 
@@ -83,7 +91,11 @@ void Flip_GPIO_One(void)
         GPIO_SetBits(GPIOB, GPIO_Pin_5);
         break;
     case 6:
-        TIM2->ARR = MAXPWM - CPWM[3];
+        {
+            uint16 low = MAXPWM - CPWM[3];
+            if (low < MIN_LOW_TIME) low = MIN_LOW_TIME;
+            TIM2->ARR = low;
+        }
         GPIO_ResetBits(GPIOB, GPIO_Pin_5);
         break;
 

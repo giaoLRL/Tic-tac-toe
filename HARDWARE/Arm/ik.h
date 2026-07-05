@@ -39,7 +39,7 @@ typedef struct {
 /* 默认标定值 (实物标定)
    底座 270°舵机, 零位 → PWM=2150
    大臂 270°舵机, 零位 → PWM=1500
-   小臂 270°舵机, 零位 → PWM=500  */
+   小臂 270°舵机, 垂直基准 → PWM=1167 (舵机90°位置, 伸直折叠各有余量) */
 #define DEFAULT_BASE_OFFSET      2150
 #define DEFAULT_SHOULDER_OFFSET  1500
 #define DEFAULT_ELBOW_OFFSET     500

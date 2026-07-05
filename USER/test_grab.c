@@ -23,22 +23,46 @@ volatile uint8 planner_busy = 0;
 
 /* ================================================================
  *  棋盘坐标预设 (9 个格子)
- *  索引对应棋盘位置:
- *    0  1  2     (y = -35)
- *    3  4  5     (y = 0)
- *    6  7  8     (y = +35)
- *  x: 70 / 100 / 130
+ *
+ *  棋盘物理参数:
+ *    单格 30×30mm, 相邻方格间隔缝隙 2mm → 中心距 32mm
+ *    底座正对中心格子, 距离 250mm
+ *
+ *  世界坐标 (原点 = 底座转轴桌面投影, x=前方, y=左侧):
+ *    索引对应棋盘位置:
+ *      6    7    8      y = +32 (远离底座)
+ *      3    4    5      y = 0   (中心行)
+ *      0    1    2      y = -32 (靠近底座)
+ *    x: 218 / 250 / 282
  * ================================================================ */
 static const GrabPoint board[9] = {
-    /* idx 0 */ { 70.0f, -35.0f, 40.0f, 3.0f },
-    /* idx 1 */ {100.0f, -35.0f, 40.0f, 3.0f },
-    /* idx 2 */ {130.0f, -35.0f, 40.0f, 3.0f },
-    /* idx 3 */ { 70.0f,   0.0f, 40.0f, 3.0f },
-    /* idx 4 */ {100.0f,   0.0f, 40.0f, 3.0f },   /* 中心 */
-    /* idx 5 */ {130.0f,   0.0f, 40.0f, 3.0f },
-    /* idx 6 */ { 70.0f,  35.0f, 40.0f, 3.0f },
-    /* idx 7 */ {100.0f,  35.0f, 40.0f, 3.0f },
-    /* idx 8 */ {130.0f,  35.0f, 40.0f, 3.0f },
+    /* idx 0 */ {218.0f, -32.0f, 40.0f, 3.0f },
+    /* idx 1 */ {250.0f, -32.0f, 40.0f, 3.0f },
+    /* idx 2 */ {282.0f, -32.0f, 40.0f, 3.0f },
+    /* idx 3 */ {218.0f,   0.0f, 40.0f, 3.0f },
+    /* idx 4 */ {250.0f,   0.0f, 40.0f, 3.0f },   /* 中心 */
+    /* idx 5 */ {282.0f,   0.0f, 40.0f, 3.0f },
+    /* idx 6 */ {218.0f,  32.0f, 40.0f, 3.0f },
+    /* idx 7 */ {250.0f,  32.0f, 40.0f, 3.0f },
+    /* idx 8 */ {282.0f,  32.0f, 40.0f, 3.0f },
+};
+
+/* ================================================================
+ *  棋子存放区坐标
+ *
+ *  棋盘边缘 y = ±47mm (3×30 + 2×2 = 94mm, 半宽 47mm)
+ *  存放区距棋盘边缘 10~30mm, 取中值 20mm → y ≈ ±67mm
+ *  x 取棋盘三列对齐: 118 / 150 / 182
+ * ================================================================ */
+static const GrabPoint storage_side_a[3] = {
+    {118.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列0 */
+    {150.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列1 */
+    {182.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列2 */
+};
+static const GrabPoint storage_side_b[3] = {
+    {118.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列0 */
+    {150.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列1 */
+    {182.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列2 */
 };
 
 /* ================================================================
@@ -46,7 +70,7 @@ static const GrabPoint board[9] = {
  *  默认抓取序列: 中心 → 四角 → 四边中点 (共 9 步)
  *  可通过 #TSEQ,idx1,idx2,... 自定义
  * ================================================================ */
-static uint8 grab_seq[9] = {4, 0, 2, 6, 8, 1, 3, 5, 7};
+static uint8 grab_seq[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 static uint8 seq_len = 9;
 static uint8 seq_idx = 0;
 
@@ -126,27 +150,29 @@ void TestGrab_Tick(void)
 
     /* ---- 阶段 1: 移动到悬停点, 等待 planner 完成 ---- */
     case GRAB_MOVE_HOVER:
-        if (!planner_busy && cmd_type == 0) {
+        if (!planner_busy) {
             g_state = GRAB_WAIT_HOVER;
+            g_pause_ms = 0;
         }
         break;
 
     case GRAB_WAIT_HOVER:
-        /* 稳定片刻后下降 */
-        g_state = GRAB_MOVE_GRAB;
-        SendPosCmd(g_current.x, g_current.y, g_current.z_grab);
+        g_pause_ms += TICK_MS;
+        if (g_pause_ms >= 200) {
+            g_state = GRAB_MOVE_GRAB;
+            SendPosCmd(g_current.x, g_current.y, g_current.z_grab);
+        }
         break;
 
     /* ---- 阶段 2: 下降到抓取高度 ---- */
     case GRAB_MOVE_GRAB:
-        if (!planner_busy && cmd_type == 0) {
+        if (!planner_busy) {
             g_state = GRAB_WAIT_GRAB;
-            g_pause_ms = 0;  /* 开始计时 */
+            g_pause_ms = 0;
         }
         break;
 
     case GRAB_WAIT_GRAB:
-        /* 停留 500ms 模拟抓取动作 */
         g_pause_ms += TICK_MS;
         if (g_pause_ms >= 500) {
             g_state = GRAB_MOVE_LIFT;
@@ -156,9 +182,9 @@ void TestGrab_Tick(void)
 
     /* ---- 阶段 3: 提升回悬停高度 ---- */
     case GRAB_MOVE_LIFT:
-        if (!planner_busy && cmd_type == 0) {
+        if (!planner_busy) {
             g_state = GRAB_WAIT_LIFT;
-            /* 打印当前完成坐标 */
+            g_pause_ms = 0;
             {
                 char buf[32];
                 sprintf(buf, "OK GRAB %d,%d,%d\r\n",
@@ -171,16 +197,18 @@ void TestGrab_Tick(void)
         break;
 
     case GRAB_WAIT_LIFT:
-        /* 移动到下一个目标, 或结束 */
-        seq_idx++;
-        if (seq_idx >= seq_len) {
-            g_state  = GRAB_DONE;
-            g_active = 0;
-            UART_PutStr(USART1, "TEST DONE\r\n");
-        } else {
-            g_current = board[grab_seq[seq_idx]];
-            g_state = GRAB_MOVE_HOVER;
-            SendPosCmd(g_current.x, g_current.y, g_current.z_hover);
+        g_pause_ms += TICK_MS;
+        if (g_pause_ms >= 200) {
+            seq_idx++;
+            if (seq_idx >= seq_len) {
+                g_state  = GRAB_DONE;
+                g_active = 0;
+                UART_PutStr(USART1, "TEST DONE\r\n");
+            } else {
+                g_current = board[grab_seq[seq_idx]];
+                g_state = GRAB_MOVE_HOVER;
+                SendPosCmd(g_current.x, g_current.y, g_current.z_hover);
+            }
         }
         break;
 
