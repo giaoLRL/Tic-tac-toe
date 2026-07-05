@@ -36,13 +36,16 @@ typedef struct {
     uint16 elbow_offset;    /* 小臂舵机零位 */
 } IK_Calib;
 
-/* 默认标定值 (需修改为实测值) */
-#define DEFAULT_BASE_OFFSET      1500
+/* 默认标定值 (实物标定)
+   底座 270°舵机, 零位 → PWM=2150
+   大臂 270°舵机, 零位 → PWM=1500
+   小臂 270°舵机, 零位 → PWM=500  */
+#define DEFAULT_BASE_OFFSET      2150
 #define DEFAULT_SHOULDER_OFFSET  1500
-#define DEFAULT_ELBOW_OFFSET     1500
+#define DEFAULT_ELBOW_OFFSET     500
 
 /* 肩部距桌面高度 (mm) */
-#define SHOULDER_HEIGHT          60.0f
+#define SHOULDER_HEIGHT          65.0f
 
 /*
  * 世界坐标 → 3个舵机 PWM 值

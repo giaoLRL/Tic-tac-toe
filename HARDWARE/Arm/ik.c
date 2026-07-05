@@ -1,6 +1,7 @@
 #include "ik.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 /* 标定偏移 (运行时可通过 IK_SetCalib 修改) */
 static IK_Calib calib = {
@@ -85,17 +86,21 @@ int IK_Solve(float x, float y, float z,
     /* ---- 4. 大臂角 ---- */
     alpha = atan2f(z_rel, r);       /* 目标方向角 */
     beta  = atan2f(L2 * sin_theta3, L1 + L2 * cos_theta3);
-    theta2 = alpha + beta;          /* elbow-up 配置 */
+    theta2 = alpha - beta;          /* elbow-down 配置 */
 
-    /* ---- 5. 角度 → PWM ---- */
-    *s1 = IK_RadToPWM(theta1);
-    *s2 = IK_RadToPWM(theta2);
-    *s3 = IK_RadToPWM(theta3);
-
-    /* 应用标定偏移 */
-    *s1 = (uint16)((int32_t)*s1 + (int32_t)calib.base_offset     - DEFAULT_BASE_OFFSET);
-    *s2 = (uint16)((int32_t)*s2 + (int32_t)calib.shoulder_offset - DEFAULT_SHOULDER_OFFSET);
-    *s3 = (uint16)((int32_t)*s3 + (int32_t)calib.elbow_offset    - DEFAULT_ELBOW_OFFSET);
+	/* ---- 5. 角度 → PWM ---- */
+	/*
+	 * 底座 (270°舵机, 零位 PWM=2150): PWM = 2150 - theta1 × 424.41
+	 * 大臂 (270°舵机, 零位 PWM=1500):   PWM = 1500 - theta2 × 424.41
+	 * 小臂 (270°舵机, 零位 PWM=500):   PWM = 500  + (θ3 - π/2) × 424.41
+	 */
+	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) */
+	#define SHOULDER_SCALE  424.41f
+	#define ELBOW_SCALE     424.41f    /* 2000 / (270°→rad) */
+	
+	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
+	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);
+	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 1.57079633f) * ELBOW_SCALE);  /* 以垂直为基准 */
 
     /* 限幅 */
     if (*s1 < SERVO_MIN) *s1 = SERVO_MIN;

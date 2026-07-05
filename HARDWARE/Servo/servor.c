@@ -21,7 +21,7 @@
  */
 
 volatile uint8  count1;
-volatile uint16 CPWM[SERVO_NUM + 1] = {0, 1500, 1500, 1500};
+volatile uint16 CPWM[SERVO_NUM + 1] = {0, 2150, 1500, 500};
 
 /* GPIO 初始化: PB15(舵机1), PA8(舵机2), PB5(舵机3) */
 void Servor_GPIO_Config(void)

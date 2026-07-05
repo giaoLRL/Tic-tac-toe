@@ -21,6 +21,7 @@
 #include "led.h"
 #include "ik.h"
 #include "common.h"
+#include "test_grab.h"
 
 /* ========== 外部 ISR 标志 ========== */
 volatile uint8 flag_planner = 0;    /* TIM4 ISR 置位, 20ms 周期 */
@@ -59,11 +60,16 @@ int main(void)
 
     UART_PutStr(USART1, "Arm Ready\r\n");
     UART_PutStr(USART1, "Commands: #PWM,s1,s2,s3 | #POS,x,y,z | #HOME | #CAL,b,s,e\r\n");
+    UART_PutStr(USART1, "Test: #TEST | #TSEQ,0,4,8 | #TGRAB,x,y | #TSTOP\r\n");
 
     /*
      * CPWM 初始值已为 {1500,1500,1500} (servor.c 中定义),
      * 上电时舵机保持中位, 无需额外归位动作。
      */
+
+    /* 上电自动启动默认抓取测试 */
+    TestGrab_Init();
+    TestGrab_Start(0, 0);
 
     while (1) {
 
@@ -80,6 +86,9 @@ int main(void)
                 Planner_Tick();
             }
         }
+
+        /* ---- 抓取测试状态机 ---- */
+        TestGrab_Tick();
 
         /* ---- 处理上位机指令 ---- */
         if (!planner.running && cmd_type != 0) {
@@ -127,6 +136,7 @@ static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 duration_ms)
 
     planner.current_step = 0;
     planner.running = 1;
+    planner_busy = 1;
 }
 
 /*
@@ -147,6 +157,7 @@ static uint8 Planner_Tick(void)
         }
         __enable_irq();
         planner.running = 0;
+        planner_busy = 0;
         /* DONE 响应: 等当前 resp_ready 被消费后再发, 简单起见直接覆盖 */
         /* 注意: 此处用 UART_PutStr 是安全的, 因为不在 ISR 中 */
         UART_PutStr(USART1, "DONE\r\n");

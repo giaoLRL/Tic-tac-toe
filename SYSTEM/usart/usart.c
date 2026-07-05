@@ -1,6 +1,7 @@
 #include "sys.h"
 #include "usart.h"
 #include "led.h"
+#include "test_grab.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -184,6 +185,12 @@ static void ParseCmd(char *str)
     if (strncmp(str, "#HOME", 5) == 0) {
         cmd_type = 4;
         SetResp("OK HOME\r\n");
+        return;
+    }
+
+    /* 测试指令: #TEST / #TSEQ / #TGRAB / #TSTOP */
+    if (strncmp(str, "#T", 2) == 0) {
+        TestGrab_HandleCmd(str);
         return;
     }
 

@@ -350,7 +350,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F10X_MD</Define>
               <Undefine></Undefine>
-              <IncludePath>.\CORE;.\FWlib\inc;.\HARDWARE\Timer;.\HARDWARE\Servo;.\SYSTEM\delay;.\SYSTEM\sys;.\SYSTEM\usart;.\USER;.\HARDWARE\KEY;.\HARDWARE\LED;.\HARDWARE\PS2;.\HARDWARE\SPI;.\HARDWARE\FLASH;.\HARDWARE\Common;.\HARDWARE\Oneline;.\HARDWARE\Beep;.\HARDWARE\Adc</IncludePath>
+              <IncludePath>.\CORE;.\FWlib\inc;.\HARDWARE\Timer;.\HARDWARE\Servo;.\SYSTEM\delay;.\SYSTEM\sys;.\SYSTEM\usart;.\USER;.\HARDWARE\KEY;.\HARDWARE\LED;.\HARDWARE\PS2;.\HARDWARE\SPI;.\HARDWARE\FLASH;.\HARDWARE\Common;.\HARDWARE\Arm;.\HARDWARE\Beep;.\HARDWARE\Adc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -569,11 +569,7 @@
               <FileType>1</FileType>
               <FilePath>.\HARDWARE\Common\common.c</FilePath>
             </File>
-            <File>
-              <FileName>oneline.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\HARDWARE\Oneline\oneline.c</FilePath>
-            </File>
+
             <File>
               <FileName>beep.c</FileName>
               <FileType>1</FileType>
@@ -583,6 +579,11 @@
               <FileName>Adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\HARDWARE\Adc\Adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>ik.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HARDWARE\Arm\ik.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -623,6 +624,11 @@
               <FileName>system_stm32f10x.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\USER\system_stm32f10x.c</FilePath>
+            </File>
+            <File>
+              <FileName>test_grab.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\USER\test_grab.c</FilePath>
             </File>
           </Files>
         </Group>

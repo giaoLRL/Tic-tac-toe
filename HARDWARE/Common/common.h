@@ -2,17 +2,21 @@
 #define _COMMON_H_
 
 /* ========== 基础类型 ========== */
+#define int8    signed char
+#define int16   signed short int
+#define int32   signed int
 #define uint8   unsigned char
-#define uint32  unsigned int
 #define uint16  unsigned short int
+#define uint32  unsigned int
 
 /* ========== 舵机数量 ========== */
 #define SERVO_NUM   3
 
 /* ========== 舵机 PWM 范围 ========== */
-/* 标准舵机: 500~2500us 对应 0°~180°, 1500us 为中位 90° */
-#define SERVO_MIN   700
-#define SERVO_MAX   2300
+/* 180° 舵机: 500~2500us 对应 0°~180°
+   270° 舵机: 500~2500us 对应 0°~270° */
+#define SERVO_MIN   500
+#define SERVO_MAX   2500
 #define SERVO_MID   1500
 
 /* ========== PWM 定时参数 ========== */
@@ -23,8 +27,8 @@
 #define INTERP_MS   20        /* 插补更新间隔 (ms) */
 
 /* ========== 机械臂连杆长度 (mm, 需实测) ========== */
-#define L1          80.0f     /* 大臂长度 */
-#define L2          70.0f     /* 小臂长度 */
+#define L1          105.0f     /* 大臂长度 10.5cm */
+#define L2          95.0f      /* 小臂长度 9.5cm */
 
 /* ========== 弧度/PWM 转换 ========== */
 /* 仅保留 IK_RadToPWM() 函数实现, 不提供宏以免不一致
