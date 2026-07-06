@@ -103,14 +103,14 @@ int IK_Solve(float x, float y, float z,
 	/*
 	 * 底座 (270°舵机, 零位 PWM=2150): PWM = 2150 - theta1 × 424.41
 	 * 大臂 (270°舵机, 零位 PWM=1500):   PWM = 1500 - theta2 × 424.41
-	 * 小臂 (270°舵机, 垂直 PWM=1167):  PWM = 1167 + (θ3 - π/2) × 424.41
-	 *   θ3=90°(垂直) → 1167, θ3=0°(伸直) → 500, θ3=180°(折叠) → 1833
-	 * 腕部 (270°舵机, 零位 PWM=1500):  PWM = 1500 - θ4 × 424.41
+	 * 小臂 (180°舵机, 中位 PWM=1500):   PWM = 1500 + (θ3 - π/2) × 636.62
+	 *   θ3=90°(垂直) → 1500, θ3=0°(伸直) → 500, θ3=180°(折叠) → 2500
+	 * 腕部 (180°舵机, 零位 PWM=1500):  PWM = 1500 - θ4 × 636.62
 	 */
 	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) */
 	#define SHOULDER_SCALE  424.41f
-	#define ELBOW_SCALE     424.41f    /* 2000 / (270°→rad) */
-	#define WRIST_SCALE     424.41f    /* 2000 / (270°→rad) */
+	#define ELBOW_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
+	#define WRIST_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 
 	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
 	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);

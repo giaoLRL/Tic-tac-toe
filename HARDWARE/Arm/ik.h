@@ -50,7 +50,7 @@ typedef struct {
    腕部 270°舵机, 中位 → PWM=1500 (θ4=0, 与小臂共线; 实物方向需标定) */
 #define DEFAULT_BASE_OFFSET      2150
 #define DEFAULT_SHOULDER_OFFSET  1500
-#define DEFAULT_ELBOW_OFFSET     500
+#define DEFAULT_ELBOW_OFFSET     1500
 #define DEFAULT_WRIST_OFFSET     1500
 
 /* 肩部距桌面高度 (mm) */
