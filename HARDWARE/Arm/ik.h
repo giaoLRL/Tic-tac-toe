@@ -53,7 +53,7 @@ typedef struct {
  *  腕部: θ4=0(PWM=500) 时吸盘与小臂共线, θ4=-π/2(PWM=1500) 时⊥小臂 */
 #define DEFAULT_BASE_OFFSET      2150
 #define DEFAULT_SHOULDER_OFFSET  1500
-#define DEFAULT_ELBOW_OFFSET     1500
+#define DEFAULT_ELBOW_OFFSET     1000
 #define DEFAULT_WRIST_OFFSET     500
 
 /* 肩部距桌面高度 (mm) */
