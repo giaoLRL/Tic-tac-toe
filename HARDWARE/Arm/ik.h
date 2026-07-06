@@ -44,12 +44,18 @@ typedef struct {
 } IK_Calib;
 
 /* 默认标定值 (实物标定)
-   底座 270°舵机, 零位 → PWM=2150
-   大臂 270°舵机, 零位 → PWM=1500
-   小臂 270°舵机, 垂直基准 → PWM=1167 (舵机90°位置, 伸直折叠各有余量)
-   腕部 270°舵机, 中位 → PWM=1500 (θ4=0, 与小臂共线; 实物方向需标定) */
+ *
+ *  全部伸直共线 (θ2=0, θ3=0, θ4=-π/2) 时:
+ *    底座: PWM=2150 (0°正前方)
+ *    大臂: PWM=2490 (水平向前)
+ *    小臂: PWM=2500→clamp 2490 (伸直无折叠)
+ *    腕部: PWM=2500→clamp 2490 (与小臂共线)
+ *
+ *  舵机类型:
+ *    底座 270°, 大臂 270°, 小臂 180°, 腕部 180°
+ */
 #define DEFAULT_BASE_OFFSET      2150
-#define DEFAULT_SHOULDER_OFFSET  1500
+#define DEFAULT_SHOULDER_OFFSET  2490
 #define DEFAULT_ELBOW_OFFSET     1500
 #define DEFAULT_WRIST_OFFSET     1500
 

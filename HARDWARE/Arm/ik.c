@@ -101,11 +101,23 @@ int IK_Solve(float x, float y, float z,
 
 	/* ---- 6. 角度 → PWM ---- */
 	/*
-	 * 底座 (270°舵机, 零位 PWM=2150): PWM = 2150 - theta1 × 424.41
-	 * 大臂 (270°舵机, 零位 PWM=1500):   PWM = 1500 - theta2 × 424.41
-	 * 小臂 (180°舵机, 中位 PWM=1500):   PWM = 1500 + (θ3 - π/2) × 636.62
-	 *   θ3=90°(垂直) → 1500, θ3=0°(伸直) → 500, θ3=180°(折叠) → 2500
-	 * 腕部 (180°舵机, 零位 PWM=1500):  PWM = 1500 - θ4 × 636.62
+	 *  标定约定: 全部伸直共线时 PWM≈2500
+	 *
+	 *  底座 (270°舵机, 零位 PWM=2150):
+	 *    PWM = 2150 - θ1 × 424.41
+	 *    θ1=0(正前方) → 2150
+	 *
+	 *  大臂 (270°舵机, 零位 PWM=2490):
+	 *    PWM = 2490 - θ2 × 424.41
+	 *    θ2=0(水平伸直) → 2490, θ2>0(上仰) → PWM 减小
+	 *
+	 *  小臂 (180°舵机, 中位 PWM=1500):
+	 *    PWM = 1500 - (θ3 - π/2) × 636.62
+	 *    θ3=0(伸直共线) → 2500, θ3=90°(垂直) → 1500, θ3=180°(折叠) → 500
+	 *
+	 *  腕部 (180°舵机, 零位 PWM=1500):
+	 *    PWM = 1500 - θ4 × 636.62
+	 *    θ4=-π/2(吸盘垂直向下) → 2500 (伸直姿态)
 	 */
 	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) */
 	#define SHOULDER_SCALE  424.41f
@@ -114,7 +126,7 @@ int IK_Solve(float x, float y, float z,
 
 	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
 	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);
-	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 1.57079633f) * ELBOW_SCALE);  /* 以垂直为基准 */
+	*s3 = (uint16)((float)calib.elbow_offset    - (theta3 - 1.57079633f) * ELBOW_SCALE);  /* 伸直→2500 */
 	*s4 = (uint16)((float)calib.wrist_offset    - theta4 * WRIST_SCALE);
 
     /* 限幅 */
