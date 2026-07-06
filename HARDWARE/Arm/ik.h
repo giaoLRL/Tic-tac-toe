@@ -45,17 +45,14 @@ typedef struct {
 
 /* 默认标定值 (实物标定)
  *
- *  全部伸直共线 (θ2=0, θ3=0, θ4=-π/2) 时:
- *    底座: PWM=2150 (0°正前方)
- *    大臂: PWM=2490 (水平向前)
- *    小臂: PWM=2500→clamp 2490 (伸直无折叠)
- *    腕部: PWM=2500→clamp 2490 (与小臂共线)
- *
  *  舵机类型:
  *    底座 270°, 大臂 270°, 小臂 180°, 腕部 180°
+ *
+ *  各舵机中位 PWM=1500 对应舵机 90° 机械中位.
+ *  小臂: θ3=0(伸直) → PWM=500, θ3=90°(垂直) → PWM=1500, θ3=180°(折叠) → PWM=2500
  */
 #define DEFAULT_BASE_OFFSET      2150
-#define DEFAULT_SHOULDER_OFFSET  2490
+#define DEFAULT_SHOULDER_OFFSET  1500
 #define DEFAULT_ELBOW_OFFSET     1500
 #define DEFAULT_WRIST_OFFSET     1500
 
