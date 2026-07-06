@@ -50,11 +50,11 @@ typedef struct {
  *
  *  各舵机中位 PWM=1500 对应舵机 90° 机械中位.
  *  小臂: θ3=0(伸直) → PWM=500, θ3=90°(垂直) → PWM=1500, θ3=180°(折叠) → PWM=2500
- */
+ *  腕部: θ4=0(PWM=500) 时吸盘与小臂共线, θ4=-π/2(PWM=1500) 时⊥小臂 */
 #define DEFAULT_BASE_OFFSET      2150
 #define DEFAULT_SHOULDER_OFFSET  1500
 #define DEFAULT_ELBOW_OFFSET     1500
-#define DEFAULT_WRIST_OFFSET     1500
+#define DEFAULT_WRIST_OFFSET     500
 
 /* 肩部距桌面高度 (mm) */
 #define SHOULDER_HEIGHT          65.0f
