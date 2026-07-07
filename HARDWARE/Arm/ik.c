@@ -93,35 +93,35 @@ int IK_Solve(float x, float y, float z,
     theta2 = alpha - beta;          /* elbow-down 配置 */
 
 	/* ---- 5. 腕部俯仰角 (保持末端吸盘垂直向下) ---- */
-	/* θ4=0(PWM=500)时吸盘∥小臂, θ4=-π/2(PWM=1500)时⊥小臂 */
-	theta4 = -(theta2 + theta3) - 1.57079633f;  /* 代码按"共线"基准计算 */
+	/* θ4=0(PWM=零位)时吸盘与小臂共线朝上, θ4=-π/2时⊥小臂朝下 */
+	/* TODO: θ4公式产生的角度远超180°舵机范围, 腕部公式待修正 */
+	theta4 = -(theta2 + theta3) - 1.57079633f;
 
 	/* ---- 6. 角度 → PWM ---- */
 	/*
-	 *  底座 (270°舵机, 零位 PWM=2150):
-	 *    PWM = 2150 - θ1 × 424.41
-	 *    θ1=0(正前方) → 2150
+	 *  底座 (270°舵机, 零位 θ1=0→PWM=1500):
+	 *    PWM = base_offset + θ1 × 424.41
 	 *
-	 *  大臂 (270°舵机, 零位 PWM=1500):
-	 *    PWM = 1500 - θ2 × 424.41
-	 *    θ2=0(水平) → 1500, θ2>0(上仰) → PWM 减小
+	 *  大臂 (270°舵机, 零位 θ2=90°竖直→PWM=1400):
+	 *    PWM = shoulder_offset + (θ2 - π/2) × 254.65
+	 *    注: 比例254.65=800/π, 非标准270°舵机比例424.41, 待查
 	 *
-	 *  小臂 (180°舵机, 中位 PWM=1500):
-	 *    PWM = 1500 + (θ3 - π/2) × 636.62
-	 *    θ3=0(伸直共线) → 500, θ3=90°(垂直) → 1500, θ3=180°(折叠) → 2500
+	 *  小臂 (180°舵机, 零位 θ3=0伸直→PWM=1900):
+	 *    PWM = elbow_offset - θ3 × 636.62
+	 *    θ3=0(伸直)→1900, θ3增大→PWM减小
 	 *
-	 *  腕部 (180°舵机, 零位 PWM=500):
-	 *    PWM = 500 - θ4 × 636.62
-	 *    θ4=0(与小臂共线) → 500, θ4=-π/2(⊥小臂) → 1500
+	 *  腕部 (180°舵机, 零位 θ4=0共线→PWM=1600):
+	 *    PWM = wrist_offset + θ4 × 636.62
+	 *    θ4=0(与小臂共线)→1600
 	 */
-	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) */
-	#define SHOULDER_SCALE  424.41f
+	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) = 4000/(3π) */
+	#define SHOULDER_SCALE  254.65f    /* 800/π, IK_RadToPWM比例 */
 	#define ELBOW_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 	#define WRIST_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 
 	*s1 = (uint16)((float)calib.base_offset     + theta1 * BASE_SCALE);
-	*s2 = (uint16)((float)calib.shoulder_offset + theta2 * SHOULDER_SCALE);
-	*s3 = (uint16)((float)calib.elbow_offset    + (3.14159265f - theta3) * ELBOW_SCALE);  /* 伸直→2500 */
+	*s2 = (uint16)((float)calib.shoulder_offset + (theta2 - 1.57079633f) * SHOULDER_SCALE);
+	*s3 = (uint16)((float)calib.elbow_offset    - theta3 * ELBOW_SCALE);
 	*s4 = (uint16)((float)calib.wrist_offset    + theta4 * WRIST_SCALE);
 
     /* 限幅 */
