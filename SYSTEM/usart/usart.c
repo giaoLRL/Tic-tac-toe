@@ -30,18 +30,18 @@ void _sys_exit(int x) { (void)x; }
 
 int fputc(int ch, FILE *f)
 {
-    while ((USART1->SR & 0x40) == 0);
-    USART1->DR = (uint8)ch;
+    while ((USART2->SR & 0x40) == 0);
+    USART2->DR = (uint8)ch;
     return ch;
 }
 #endif
 
 /* ========== NVIC ========== */
-static void Uart1_NVIC_Init(void)
+static void Uart2_NVIC_Init(void)
 {
     NVIC_InitTypeDef NVIC_InitStructure;
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
-    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
@@ -49,17 +49,18 @@ static void Uart1_NVIC_Init(void)
 }
 
 /* ========== GPIO ========== */
-static void Uart1_Gpio_Config(void)
+static void Uart2_Gpio_Config(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
@@ -67,9 +68,9 @@ static void Uart1_Gpio_Config(void)
 /* ========== 初始化入口 ========== */
 void Uart_Init(uint16 uart_num)
 {
-    if (uart_num == 1) {
-        Uart1_NVIC_Init();
-        Uart1_Gpio_Config();
+    if (uart_num == 2) {
+        Uart2_NVIC_Init();
+        Uart2_Gpio_Config();
     }
 }
 
@@ -200,15 +201,15 @@ static void ParseCmd(char *str)
     SetResp("ERR UNKNOWN\r\n");
 }
 
-/* ========== USART1 中断接收 ========== */
-void USART1_IRQHandler(void)
+/* ========== USART2 中断接收 ========== */
+void USART2_IRQHandler(void)
 {
     uint8 ch;
 
     /* 先处理正常接收, 再处理溢出 (避免误读有效数据) */
-    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) {
-        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
-        ch = USART_ReceiveData(USART1);
+    if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
+        USART_ClearITPendingBit(USART2, USART_IT_RXNE);
+        ch = USART_ReceiveData(USART2);
 
         if (ch == '\n' || recv_idx >= 63) {
             recv_buf[recv_idx] = '\0';
@@ -222,8 +223,8 @@ void USART1_IRQHandler(void)
     }
 
     /* ORE: 必须先读 SR 再读 DR 才能清除 (参考手册 RM0008 §25.3.5) */
-    if (USART_GetFlagStatus(USART1, USART_FLAG_ORE) != RESET) {
-        (void)USART_ReceiveData(USART1);  /* 读 DR 完成 ORE 清除序列 */
+    if (USART_GetFlagStatus(USART2, USART_FLAG_ORE) != RESET) {
+        (void)USART_ReceiveData(USART2);  /* 读 DR 完成 ORE 清除序列 */
     }
 }
 

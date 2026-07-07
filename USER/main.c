@@ -51,17 +51,17 @@ int main(void)
 {
     SysTick_Init();
     Servor_GPIO_Config();
-    Uart_Init(1);
+    Uart_Init(2);
     Timer_Init();
     Timer_ON();
     LED_Init();
-    USART_Config(USART1, 115200);
+    USART_Config(USART2, 115200);
 
     Led_Test();
 
-    UART_PutStr(USART1, "Arm Ready (4DOF)\r\n");
-    UART_PutStr(USART1, "Commands: #PWM,s1,s2,s3,s4 | #POS,x,y,z | #HOME | #CAL,b,s,e,w\r\n");
-    UART_PutStr(USART1, "Test: #TEST | #TSEQ,0,4,8 | #TGRAB,x,y | #TSTOP\r\n");
+    UART_PutStr(USART2, "Arm Ready (4DOF)\r\n");
+    UART_PutStr(USART2, "Commands: #PWM,s1,s2,s3,s4 | #POS,x,y,z | #HOME | #CAL,b,s,e,w\r\n");
+    UART_PutStr(USART2, "Test: #TEST | #TSEQ,0,4,8 | #TGRAB,x,y | #TSTOP\r\n");
 
     /*
      * CPWM 初始值已为 {2150,1500,500,1500} (servor.c 中定义),
@@ -69,16 +69,14 @@ int main(void)
      * 腕部(CPWM[4]=1500)上电为机械中位, 第一条 #POS 指令后由 IK 自动解算到位。
      */
 
-    /* 上电自动启动默认抓取测试 */
-    TestGrab_Init();
-    TestGrab_Start(0, 0);
+   
 
     while (1) {
 
         /* ---- 响应发送: ISR 只设 resp_ready, 这里真正发 ---- */
         if (resp_ready) {
             resp_ready = 0;
-            UART_PutStr(USART1, resp_msg);
+            UART_PutStr(USART2, resp_msg);
         }
 
         /* ---- 插补节拍: 每 20ms 走一步 ---- */
@@ -133,7 +131,7 @@ static void Planner_Start(uint16 s1, uint16 s2, uint16 s3, uint16 s4, uint16 dur
         __enable_irq();
         planner.running = 0;
         planner_busy = 0;
-        UART_PutStr(USART1, "DONE\r\n");
+        UART_PutStr(USART2, "DONE\r\n");
         return;
     }
 
@@ -174,7 +172,7 @@ static uint8 Planner_Tick(void)
         planner_busy = 0;
         /* DONE 响应: 等当前 resp_ready 被消费后再发, 简单起见直接覆盖 */
         /* 注意: 此处用 UART_PutStr 是安全的, 因为不在 ISR 中 */
-        UART_PutStr(USART1, "DONE\r\n");
+        UART_PutStr(USART2, "DONE\r\n");
         return 1;
     }
 
@@ -219,7 +217,7 @@ static void Exec_Cmd(void)
             if (ret == 0) {
                 Planner_Start(ik_s1, ik_s2, ik_s3, ik_s4, DEFAULT_DURATION_MS);
             } else {
-                UART_PutStr(USART1, "ERR IK FAIL\r\n");
+                UART_PutStr(USART2, "ERR IK FAIL\r\n");
             }
         }
         break;

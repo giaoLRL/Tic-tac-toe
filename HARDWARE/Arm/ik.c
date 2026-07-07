@@ -69,7 +69,7 @@ int IK_Solve(float x, float y, float z,
 
     /* 距离校验 */
     d = sqrtf(r * r + z_rel * z_rel);
-    if (d > (L1 + L2) * 0.95f) {
+    if (d > (L1 + L2) * 1) {
         /* 坐标太远, 缩放到可达范围 */
         float scale = (L1 + L2) * 0.95f / d;
         r     *= scale;
@@ -121,8 +121,8 @@ int IK_Solve(float x, float y, float z,
 
 	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
 	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);
-	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 1.57079633f) * ELBOW_SCALE);  /* 伸直→500 */
-	*s4 = (uint16)((float)calib.wrist_offset    - theta4 * WRIST_SCALE);
+	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 3.14159265f) * ELBOW_SCALE);  /* 伸直→500 */
+	*s4 = (uint16)((float)calib.wrist_offset    +theta4 * WRIST_SCALE);
 
     /* 限幅 */
     if (*s1 < SERVO_MIN) *s1 = SERVO_MIN;

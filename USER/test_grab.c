@@ -40,15 +40,15 @@ volatile uint8 planner_busy = 0;
  *    最远点 idx8 (175, 32, z=3):  d=189.4 < 190 ✓
  * ================================================================ */
 static const GrabPoint board[9] = {
-    /* idx 0 */ {115.0f, -32.0f, 40.0f, 3.0f },
-    /* idx 1 */ {145.0f, -32.0f, 40.0f, 3.0f },
-    /* idx 2 */ {175.0f, -32.0f, 40.0f, 3.0f },
-    /* idx 3 */ {115.0f,   0.0f, 40.0f, 3.0f },
-    /* idx 4 */ {145.0f,   0.0f, 40.0f, 3.0f },   /* 中心 */
-    /* idx 5 */ {175.0f,   0.0f, 40.0f, 3.0f },
-    /* idx 6 */ {115.0f,  32.0f, 40.0f, 3.0f },
-    /* idx 7 */ {145.0f,  32.0f, 40.0f, 3.0f },
-    /* idx 8 */ {175.0f,  32.0f, 40.0f, 3.0f },
+    /* idx 0 */ {145.0f, -32.0f, 50.0f, 3.0f },
+    /* idx 1 */ {175.0f, -32.0f, 50.0f, 3.0f },
+    /* idx 2 */ {204.0f, -32.0f, 50.0f, 3.0f },
+    /* idx 3 */ {145.0f,   0.0f, 50.0f, 3.0f },
+    /* idx 4 */ {175.0f,   0.0f, 50.0f, 3.0f },   /* 中心 */
+    /* idx 5 */ {204.0f,   0.0f, 50.0f, 3.0f },
+    /* idx 6 */ {145.0f,  32.0f, 50.0f, 3.0f },
+    /* idx 7 */ {175.0f,  32.0f, 50.0f, 3.0f },
+    /* idx 8 */ {204.0f,  32.0f, 50.0f, 3.0f },
 };
 
 /* ================================================================
@@ -59,14 +59,14 @@ static const GrabPoint board[9] = {
  *  x 与棋盘三列对齐: 115 / 145 / 175
  * ================================================================ */
 static const GrabPoint storage_side_a[3] = {
-    {115.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列0 */
-    {145.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列1 */
-    {175.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列2 */
+    {145.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列0 */
+    {175.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列1 */
+    {205.0f,  67.0f, 40.0f, 3.0f},   /* y+ 侧, 列2 */
 };
 static const GrabPoint storage_side_b[3] = {
-    {115.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列0 */
-    {145.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列1 */
-    {175.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列2 */
+    {145.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列0 */
+    {175.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列1 */
+    {205.0f, -67.0f, 40.0f, 3.0f},   /* y- 侧, 列2 */
 };
 
 /* ================================================================
@@ -139,7 +139,7 @@ void TestGrab_Start(uint8 *seq, uint8 len)
     /* 发送悬停指令 */
     SendPosCmd(g_current.x, g_current.y, g_current.z_hover);
 
-    UART_PutStr(USART1, "TEST START\r\n");
+    UART_PutStr(USART2, "TEST START\r\n");
 }
 
 /* ================================================================
@@ -195,7 +195,7 @@ void TestGrab_Tick(void)
                         (int)g_current.x,
                         (int)g_current.y,
                         (int)g_current.z_grab);
-                UART_PutStr(USART1, buf);
+                UART_PutStr(USART2, buf);
             }
         }
         break;
@@ -207,7 +207,7 @@ void TestGrab_Tick(void)
             if (seq_idx >= seq_len) {
                 g_state  = GRAB_DONE;
                 g_active = 0;
-                UART_PutStr(USART1, "TEST DONE\r\n");
+                UART_PutStr(USART2, "TEST DONE\r\n");
             } else {
                 g_current = board[grab_seq[seq_idx]];
                 g_state = GRAB_MOVE_HOVER;
@@ -292,7 +292,7 @@ void TestGrab_HandleCmd(char *str)
     if (strncmp(str, "#TSTOP", 6) == 0) {
         g_active = 0;
         g_state  = GRAB_IDLE;
-        UART_PutStr(USART1, "TEST STOP\r\n");
+        UART_PutStr(USART2, "TEST STOP\r\n");
         return;
     }
 }
