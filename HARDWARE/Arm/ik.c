@@ -119,10 +119,10 @@ int IK_Solve(float x, float y, float z,
 	#define ELBOW_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 	#define WRIST_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 
-	*s1 = (uint16)((float)calib.base_offset     - theta1 * BASE_SCALE);
-	*s2 = (uint16)((float)calib.shoulder_offset - theta2 * SHOULDER_SCALE);
-	*s3 = (uint16)((float)calib.elbow_offset    + (theta3 - 3.14159265f) * ELBOW_SCALE);  /* 伸直→500 */
-	*s4 = (uint16)((float)calib.wrist_offset    +theta4 * WRIST_SCALE);
+	*s1 = (uint16)((float)calib.base_offset     + theta1 * BASE_SCALE);
+	*s2 = (uint16)((float)calib.shoulder_offset + theta2 * SHOULDER_SCALE);
+	*s3 = (uint16)((float)calib.elbow_offset    + (3.14159265f - theta3) * ELBOW_SCALE);  /* 伸直→2500 */
+	*s4 = (uint16)((float)calib.wrist_offset    + theta4 * WRIST_SCALE);
 
     /* 限幅 */
     if (*s1 < SERVO_MIN) *s1 = SERVO_MIN;
