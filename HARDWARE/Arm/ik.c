@@ -120,7 +120,7 @@ int IK_Solve(float x, float y, float z,
 	#define WRIST_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 
 	*s1 = (uint16)((float)calib.base_offset     + theta1 * BASE_SCALE);
-	*s2 = (uint16)((float)calib.shoulder_offset + (theta2 - 1.57079633f) * SHOULDER_SCALE);
+	*s2 = (uint16)((float)calib.shoulder_offset + theta2 * SHOULDER_SCALE);
 	*s3 = (uint16)((float)calib.elbow_offset    - theta3 * ELBOW_SCALE);
 	*s4 = (uint16)((float)calib.wrist_offset    + theta4 * WRIST_SCALE);
 
