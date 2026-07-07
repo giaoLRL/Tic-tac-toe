@@ -57,7 +57,7 @@ typedef struct {
  *  已知问题: 大臂PWM变化率对应scale≈254.65(800/π),
  *           而非标准270°舵机scale=424.41, 原因待查 */
 #define DEFAULT_BASE_OFFSET      1500
-#define DEFAULT_SHOULDER_OFFSET  1400
+#define DEFAULT_SHOULDER_OFFSET  500
 #define DEFAULT_ELBOW_OFFSET     1900
 #define DEFAULT_WRIST_OFFSET     1600
 
