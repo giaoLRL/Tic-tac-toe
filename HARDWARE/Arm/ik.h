@@ -52,11 +52,11 @@ typedef struct {
  *    底座: θ1=0(正前方) → PWM=1500
  *    大臂: θ2=0(水平) → PWM=500
  *    小臂: θ3=0(完全伸直) → PWM=1900
- *    腕部: θ4=0(与小臂共线, 吸盘朝上) → PWM=1600 */
+ *    腕部: θ4=0(与小臂共线) → PWM=1600 */
 #define DEFAULT_BASE_OFFSET      1500
 #define DEFAULT_SHOULDER_OFFSET  500
 #define DEFAULT_ELBOW_OFFSET     1900
-#define DEFAULT_WRIST_OFFSET     1600
+#define DEFAULT_WRIST_OFFSET     600
 
 /* 肩部距桌面高度 (mm) */
 #define SHOULDER_HEIGHT          65.0f
@@ -65,7 +65,7 @@ typedef struct {
  * 世界坐标 → 4个舵机 PWM 值
  * 输入:  x, y, z  末端执行器的世界坐标 (mm)
  * 输出:  s1, s2, s3, s4  四个舵机的 PWM 值 (底座/大臂/小臂/腕部)
- *        s4 由 θ4 = -π/2 - (θ2+θ3) 自动求解, 使末端吸盘垂直向下
+ *        s4 由 θ4 = -π/2 - (θ2+θ3) 自动求解, 使末端吸盘始终垂直向下
  * 返回:  0=成功, -1=坐标不可达
  */
 int IK_Solve(float x, float y, float z,
