@@ -90,7 +90,7 @@ int IK_Solve(float x, float y, float z,
     /* ---- 4. 大臂角 ---- */
     alpha = atan2f(z_rel, r);       /* 目标方向角 */
     beta  = atan2f(L2 * sin_theta3, L1 + L2 * cos_theta3);
-    theta2 = alpha - beta;          /* elbow-down 配置 */
+    theta2 = alpha + beta;          /* elbow-up 配置 */
 
 	/* ---- 5. 腕部俯仰角 (保持末端吸盘垂直向下) ---- */
 	/* θ4=0(PWM=零位)时吸盘与小臂共线朝上, θ4=-π/2时⊥小臂朝下 */
@@ -102,9 +102,9 @@ int IK_Solve(float x, float y, float z,
 	 *  底座 (270°舵机, 零位 θ1=0→PWM=1500):
 	 *    PWM = base_offset + θ1 × 424.41
 	 *
-	 *  大臂 (270°舵机, 零位 θ2=90°竖直→PWM=500):
-	 *    PWM = shoulder_offset + (θ2 - π/2) × 254.65
-	 *    注: offset改为500, 公式和比例需重新标定
+	 *  大臂 (180°舵机, 零位 θ2=0水平→PWM=500):
+	 *    PWM = shoulder_offset - θ2 × 636.62
+	 *    θ2=0(水平)→500, θ2>0(上仰)→PWM减小
 	 *
 	 *  小臂 (180°舵机, 零位 θ3=0伸直→PWM=1900):
 	 *    PWM = elbow_offset - θ3 × 636.62
@@ -114,9 +114,9 @@ int IK_Solve(float x, float y, float z,
 	 *    PWM = wrist_offset + θ4 × 636.62
 	 *    θ4=0(与小臂共线)→1600
 	 */
-	#define BASE_SCALE      424.41f    /* 2000 / (270°→rad) = 4000/(3π) */
-	#define SHOULDER_SCALE  254.65f    /* 800/π, IK_RadToPWM比例 */
-	#define ELBOW_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
+	#define BASE_SCALE      413.80f    /* 实测: (1500−850)/(π/2) = 650/1.5708 */
+	#define SHOULDER_SCALE  560.0f     /* 实测: (1380−500)/(π/2) ≈ 560 */
+	#define ELBOW_SCALE     605.0f     /* 实测: (1900−950)/(π/2) ≈ 605 */
 	#define WRIST_SCALE     636.62f    /* 2000 / (180°→rad) = 2000/π */
 
 	*s1 = (uint16)((float)calib.base_offset     + theta1 * BASE_SCALE);

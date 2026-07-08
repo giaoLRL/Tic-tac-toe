@@ -215,6 +215,7 @@ static void Exec_Cmd(void)
             uint16 ik_s1, ik_s2, ik_s3, ik_s4;
             int ret = IK_Solve(x, y, z, &ik_s1, &ik_s2, &ik_s3, &ik_s4);
             if (ret == 0) {
+                printf("POS_PWM,%d,%d,%d,%d\r\n", ik_s1, ik_s2, ik_s3, ik_s4);
                 Planner_Start(ik_s1, ik_s2, ik_s3, ik_s4, DEFAULT_DURATION_MS);
             } else {
                 UART_PutStr(USART2, "ERR IK FAIL\r\n");
