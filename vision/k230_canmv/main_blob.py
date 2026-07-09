@@ -372,7 +372,7 @@ RGB_FILTER_WINDOW = 5
 
 # ---- Background subtraction parameters ----
 DIFF_THRESHOLD = 60          # Sum of |dR|+|dG|+|dB|, below = EMPTY
-DARKEN_RATIO = 0.90          # cur_brightness/ref_brightness < ratio = BLACK
+DARKEN_RATIO = 0.80          # cur_brightness/ref_brightness < ratio = BLACK
 REFERENCE_FRAMES = 3         # Frames to median-average for reference capture
 AUTO_REF_FRAMES = 30         # Consecutive all-empty frames before auto re-ref
 REF_EMA_ALPHA = 0.05         # EMA speed for auto reference update (0=disabled)
@@ -437,6 +437,7 @@ def find_board_blob(img, draw_debug=False):
     # --- Lighting normalization ---
     gray = img.to_grayscale()
     gray = gray.histeq(adaptive=True)       # local contrast equalization
+    gray = gray.gaussian(3)                 # suppress pixel noise before hard threshold
     gray.binary([GRAY_GRID_THRESHOLD])      # dark pixels → white blobs
 
     # Find white connected regions on the binary image (were dark grid lines)
@@ -693,9 +694,9 @@ try:
         validation_misses = 0
         movement = corner_average_distance(locked_board, found)
         if movement <= 3.0:
-            locked_board = blend_corners(locked_board, found, 0.70)
+            locked_board = blend_corners(locked_board, found, 0.92)
         elif movement <= 15.0:
-            locked_board = blend_corners(locked_board, found, 0.30)
+            locked_board = blend_corners(locked_board, found, 0.65)
         elif movement <= MAX_TRACK_JUMP:
             locked_board = found[:]
             rgb_filter.reset()
