@@ -361,7 +361,7 @@ BOARD_LIMITS = {
 LOCK_STABLE_FRAMES = 6
 LOCK_CORNER_DISTANCE = 24.0
 MAX_TRACK_JUMP = 110.0
-UNLOCK_AFTER_MISSES = 6
+UNLOCK_AFTER_MISSES = 10
 EXPOSURE_SETTLE_FRAMES = 20
 
 INCIRCLE_RADIUS_SCALE = 0.28
@@ -372,7 +372,7 @@ RGB_FILTER_WINDOW = 5
 
 # ---- Background subtraction parameters ----
 DIFF_THRESHOLD = 60          # Sum of |dR|+|dG|+|dB|, below = EMPTY
-DARKEN_RATIO = 0.70          # cur_brightness/ref_brightness < ratio = BLACK
+DARKEN_RATIO = 0.80          # cur_brightness/ref_brightness < ratio = BLACK
 REFERENCE_FRAMES = 3         # Frames to median-average for reference capture
 AUTO_REF_FRAMES = 30         # Consecutive all-empty frames before auto re-ref
 REF_EMA_ALPHA = 0.05         # EMA speed for auto reference update (0=disabled)
@@ -471,7 +471,7 @@ def find_board_blob(img, draw_debug=False):
             img.draw_string(x, y, "%d A%.0f D%d" %
                             (index + 1, area / image_area * 100,
                              int(density * 100)),
-                            color=(255, 0, 255) if accepted else (0, 255, 255), scale=1)
+                            color=(255, 0, 255) if accepted else (0, 255, 255), scale=2)
         if accepted:
             candidate_count += 1
             if area > best_area:
@@ -481,7 +481,7 @@ def find_board_blob(img, draw_debug=False):
     if draw_debug:
         img.draw_string(3, 3, "BLOBS %d CAND %d" %
                         (len(blobs), candidate_count),
-                        color=(255, 255, 0), scale=1)
+                        color=(255, 255, 0), scale=2)
         if best_corners is not None:
             draw_quad(img, best_corners, (255, 255, 0), 3)
     return best_corners, len(blobs), candidate_count
@@ -533,10 +533,10 @@ def sample_and_draw_cells(img, board_corners, rgb_filter, reference_rgb):
         y = min(point[1] for point in cell) + 1
         if filtered_rgb is None or ref_rgb is None:
             img.draw_string(x, y, "%d ---" % (index + 1),
-                            color=(255, 255, 0), scale=1)
+                            color=(255, 255, 0), scale=2)
         else:
             img.draw_string(x, y, "%d D%d" % (index + 1, diff),
-                            color=state_color(state), scale=1)
+                            color=state_color(state), scale=2)
     return states, samples, diffs
 
 
@@ -560,9 +560,9 @@ def print_diff_stats(samples):
         else:
             ref_parts.append("%d:R%d,G%d,B%d" %
                              (index + 1, ref_rgb[0], ref_rgb[1], ref_rgb[2]))
-    print("DIFF " + " | ".join(diff_parts))
-    print("CUR  " + " | ".join(cur_parts))
-    print("REF  " + " | ".join(ref_parts))
+    print("差异 " + " | ".join(diff_parts))
+    print("当前 " + " | ".join(cur_parts))
+    print("参考 " + " | ".join(ref_parts))
 
 
 def enable_auto_camera():
@@ -607,7 +607,7 @@ try:
     time.sleep_ms(2000)
 
     # ---- K230 CanMV display & media ----
-    Display.init(Display.ST7701, width=WIDTH, height=HEIGHT, to_ide=True)
+    Display.init(Display.ST7701, width=800, height=480, to_ide=True)
     MediaManager.init()
     sensor.run()
 
@@ -630,8 +630,8 @@ try:
     capturing_reference = False  # True while collecting reference frames
     all_empty_count = 0          # consecutive all-empty frames for auto re-ref
 
-    print("K230 CanMV background-subtraction tic-tac-toe started")
-    print("Encoding: 0=EMPTY, 1=WHITE, 2=BLACK, -1=UNKNOWN")
+    print("K230 CanMV 背景减法井字棋启动")
+    print("编码: 0=空, 1=白, 2=黑, -1=未知")
 
     while True:
         clock.tick()
@@ -653,7 +653,7 @@ try:
                     candidate_count = 1
                 img.draw_string(3, 14, "LOCK %d/%d" %
                                 (candidate_count, LOCK_STABLE_FRAMES),
-                                color=(255, 255, 0), scale=1)
+                                color=(255, 255, 0), scale=2)
                 if candidate_count >= LOCK_STABLE_FRAMES:
                     locked_board = candidate_board[:]
                     validation_misses = 0
@@ -661,7 +661,7 @@ try:
                     rgb_filter.reset()
                     last_printed_board = None
                     settle_remaining = EXPOSURE_SETTLE_FRAMES
-                    print("BOARD_LOCKED", locked_board)
+                    print("棋盘已锁定", locked_board)
             Display.show_image(img)
             gc.collect()
             continue
@@ -673,9 +673,9 @@ try:
             draw_quad(img, locked_board, (255, 0, 0), 2)
             img.draw_string(3, 3, "FRAME MISS %d/%d" %
                             (validation_misses, UNLOCK_AFTER_MISSES),
-                            color=(255, 0, 0), scale=1)
+                            color=(255, 0, 0), scale=2)
             if validation_misses >= UNLOCK_AFTER_MISSES:
-                print("BOARD_LOST: returning to blob search")
+                print("棋盘丢失: 返回斑点搜索")
                 locked_board = None
                 candidate_board = None
                 candidate_count = 0
@@ -711,7 +711,7 @@ try:
         if settle_remaining > 0:
             draw_quad(img, locked_board, (255, 255, 0), 3)
             img.draw_string(3, 3, "CAMERA SETTLE %d" % settle_remaining,
-                            color=(255, 255, 0), scale=1)
+                            color=(255, 255, 0), scale=2)
             settle_remaining -= 1
             if settle_remaining == 0:
                 freeze_camera()
@@ -720,7 +720,7 @@ try:
                 # Start reference capture on next frame
                 capturing_reference = True
                 ref_buffer = []
-                print("CAMERA_FROZEN: capturing reference...")
+                print("相机已冻结: 正在采集参考...")
             Display.show_image(img)
             gc.collect()
             continue
@@ -732,7 +732,7 @@ try:
             draw_quad(img, locked_board, (255, 255, 0), 3)
             img.draw_string(3, 3, "REF CAP %d/%d" %
                             (len(ref_buffer), REFERENCE_FRAMES),
-                            color=(255, 255, 0), scale=1)
+                            color=(255, 255, 0), scale=2)
             if len(ref_buffer) >= REFERENCE_FRAMES:
                 # Take per-cell median across frames as reference
                 reference_rgb = []
@@ -750,7 +750,7 @@ try:
                 capturing_reference = False
                 ref_buffer = []
                 all_empty_count = 0
-                print("REFERENCE_CAPTURED")
+                print("参考已采集")
                 ref_parts = []
                 for idx, rgb in enumerate(reference_rgb):
                     if rgb is None:
@@ -758,7 +758,7 @@ try:
                     else:
                         ref_parts.append("%d:R%d,G%d,B%d" %
                                          (idx + 1, rgb[0], rgb[1], rgb[2]))
-                print("REF_RGB " + " | ".join(ref_parts))
+                print("参考RGB " + " | ".join(ref_parts))
             Display.show_image(img)
             gc.collect()
             continue
@@ -767,7 +767,7 @@ try:
             # Should not normally reach here, but guard
             draw_quad(img, locked_board, (255, 255, 0), 3)
             img.draw_string(3, 3, "WAIT REF...",
-                            color=(255, 255, 0), scale=1)
+                            color=(255, 255, 0), scale=2)
             Display.show_image(img)
             gc.collect()
             continue
@@ -778,7 +778,7 @@ try:
         draw_quad(img, locked_board, (0, 255, 0), 3)
         status_line = "GRID OK %d" % (clock.fps())
         img.draw_string(3, 3, status_line,
-                        color=(0, 255, 0), scale=1)
+                        color=(0, 255, 0), scale=2)
 
         # ---- Auto re-reference: slow EMA when all 9 cells are EMPTY ----
         if all(s == EMPTY for s in raw_board) and all(d < DIFF_THRESHOLD
@@ -799,25 +799,25 @@ try:
                                       cur[2] * REF_EMA_ALPHA)),
                         )
                 all_empty_count = 0
-                print("AUTO_REF_UPDATED")
+                print("自动参考已更新")
         else:
             all_empty_count = 0
 
         if frame_count % PRINT_EVERY == 0:
             print_diff_stats(samples)
-            print("RAW_BOARD", raw_board)
+            print("原始棋盘", raw_board)
 
         if stable_board is not None and stable_board != last_printed_board:
-            print("BOARD", stable_board)
+            print("棋盘", stable_board)
             last_printed_board = stable_board[:]
 
         Display.show_image(img)
         gc.collect()
 
 except KeyboardInterrupt as e:
-    print("user stop")
+    print("用户停止")
 except BaseException as e:
-    print("Exception '%s'" % e)
+    print("异常 '%s'" % e)
 finally:
     if isinstance(sensor, Sensor):
         sensor.stop()
