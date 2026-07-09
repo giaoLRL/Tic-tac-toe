@@ -27,6 +27,61 @@ def distance(a, b):
     return math.sqrt(dx * dx + dy * dy)
 
 
+def rgb_to_lab(r, g, b):
+    """Convert RGB (0-255) to CIE L*a*b* (D65 illuminant).
+    Hand-written sRGB → XYZ → Lab conversion — no cv2/numpy/skimage.
+    Returns (L, A, B) as integers: L=0..100, A=-128..127, B=-128..127.
+    """
+    # Step 1: Normalize to [0, 1]
+    rr = r / 255.0
+    gg = g / 255.0
+    bb = b / 255.0
+
+    # Step 2: Inverse sRGB companding (linearize)
+    if rr <= 0.04045:
+        rr = rr / 12.92
+    else:
+        rr = ((rr + 0.055) / 1.055) ** 2.4
+    if gg <= 0.04045:
+        gg = gg / 12.92
+    else:
+        gg = ((gg + 0.055) / 1.055) ** 2.4
+    if bb <= 0.04045:
+        bb = bb / 12.92
+    else:
+        bb = ((bb + 0.055) / 1.055) ** 2.4
+
+    # Step 3: Linear RGB → XYZ (sRGB D65 matrix)
+    x = 0.4124564 * rr + 0.3575761 * gg + 0.1804375 * bb
+    y = 0.2126729 * rr + 0.7151522 * gg + 0.0721750 * bb
+    z = 0.0193339 * rr + 0.1191920 * gg + 0.9503041 * bb
+
+    # Step 4: Normalize by D65 reference white
+    x = x / 0.95047
+    y = y / 1.00000
+    z = z / 1.08883
+
+    # Step 5: XYZ → Lab
+    if x > 0.008856:
+        fx = x ** (1.0 / 3.0)
+    else:
+        fx = 7.787 * x + 16.0 / 116.0
+    if y > 0.008856:
+        fy = y ** (1.0 / 3.0)
+    else:
+        fy = 7.787 * y + 16.0 / 116.0
+    if z > 0.008856:
+        fz = z ** (1.0 / 3.0)
+    else:
+        fz = 7.787 * z + 16.0 / 116.0
+
+    L = max(0.0, min(100.0, 116.0 * fy - 16.0))
+    A_val = max(-128.0, min(127.0, 500.0 * (fx - fy)))
+    B_val = max(-128.0, min(127.0, 200.0 * (fy - fz)))
+
+    return (int(round(L)), int(round(A_val)), int(round(B_val)))
+
+
 def order_corners(points):
     """Return top-left, top-right, bottom-right, bottom-left."""
     if len(points) != 4:
@@ -191,8 +246,8 @@ def incircle_geometry(cell_quad, radius_scale=0.35):
     return center, radius
 
 
-def circle_rgb_mean(image, cx, cy, radius, step=2):
-    """Average RGB pixels inside a circle without allocating an image mask."""
+def circle_lab_mean(image, cx, cy, radius, step=2):
+    """Sample RGB inside a circle, average RGB, then convert to LAB."""
     if radius < 1 or step < 1:
         return None, 0
     x_min = max(0, cx - radius)
@@ -225,42 +280,49 @@ def circle_rgb_mean(image, cx, cy, radius, step=2):
         y += step
     if count == 0:
         return None, 0
-    return (int(round(red_sum / count)),
-            int(round(green_sum / count)),
-            int(round(blue_sum / count))), count
+    r_avg = int(round(red_sum / count))
+    g_avg = int(round(green_sum / count))
+    b_avg = int(round(blue_sum / count))
+    return rgb_to_lab(r_avg, g_avg, b_avg), count
 
 
-def classify_by_diff(cur_rgb, ref_rgb):
-    """Compare current RGB against reference; return (state, diff_sum)."""
-    if cur_rgb is None or ref_rgb is None:
+def classify_by_lab(cur_lab, ref_lab):
+    """Compare current LAB against reference; return (state, diff_sum).
+    
+    Classification rules:
+      - diff = dL + 0.5*dA + 0.5*dB
+      - EMPTY  if diff < LAB_EMPTY_THRESHOLD
+      - BLACK  if ref_L - cur_L > BLACK_L_DROP
+      - WHITE  otherwise
+    """
+    if cur_lab is None or ref_lab is None:
         return UNKNOWN, 0
-    dr = abs(cur_rgb[0] - ref_rgb[0])
-    dg = abs(cur_rgb[1] - ref_rgb[1])
-    db = abs(cur_rgb[2] - ref_rgb[2])
-    diff = dr + dg + db
+    dL = abs(cur_lab[0] - ref_lab[0])
+    dA = abs(cur_lab[1] - ref_lab[1])
+    dB = abs(cur_lab[2] - ref_lab[2])
+    diff = dL + 0.5 * dA + 0.5 * dB
 
-    if diff < DIFF_THRESHOLD:
+    if diff < LAB_EMPTY_THRESHOLD:
         return EMPTY, diff
 
-    cur_bright = cur_rgb[0] + cur_rgb[1] + cur_rgb[2]
-    ref_bright = ref_rgb[0] + ref_rgb[1] + ref_rgb[2]
-    if ref_bright > 0 and cur_bright < ref_bright * DARKEN_RATIO:
+    # Black piece: reference L drops significantly
+    if ref_lab[0] - cur_lab[0] > BLACK_L_DROP:
         return BLACK, diff
 
     return WHITE, diff
 
 
-def capture_reference_rgb(img, board_corners):
-    """Sample all 9 cells and return list of (r,g,b) tuples (no filtering)."""
+def capture_reference_lab(img, board_corners):
+    """Sample all 9 cells and return list of (L,A,B) tuples (no filtering)."""
     refs = []
     cells = make_grid_cells(board_corners)
     for cell in cells:
         center, radius = incircle_geometry(cell, INCIRCLE_RADIUS_SCALE)
-        rgb, count = circle_rgb_mean(img, center[0], center[1], radius,
+        lab, count = circle_lab_mean(img, center[0], center[1], radius,
                                      RGB_SAMPLE_STEP)
         if count < MIN_RGB_SAMPLES:
-            rgb = None
-        refs.append(rgb)
+            lab = None
+        refs.append(lab)
     return refs
 
 
@@ -299,8 +361,8 @@ class BoardDebouncer:
         return self.current()
 
 
-class RGBMedianFilter:
-    """Small per-cell temporal median filter for RGB measurements."""
+class LABMedianFilter:
+    """Small per-cell temporal median filter for LAB measurements."""
 
     def __init__(self, cell_count=9, window=5):
         if cell_count < 1 or window < 1:
@@ -370,9 +432,9 @@ MIN_RGB_SAMPLES = 12
 BOARD_STABLE_FRAMES = 5
 RGB_FILTER_WINDOW = 5
 
-# ---- Background subtraction parameters ----
-DIFF_THRESHOLD = 60          # Sum of |dR|+|dG|+|dB|, below = EMPTY
-DARKEN_RATIO = 0.80          # cur_brightness/ref_brightness < ratio = BLACK
+# ---- LAB background subtraction parameters ----
+LAB_EMPTY_THRESHOLD = 15    # dL+0.5*dA+0.5*dB, below = EMPTY
+BLACK_L_DROP = 10           # ref_L - cur_L > threshold = BLACK
 REFERENCE_FRAMES = 3         # Frames to median-average for reference capture
 AUTO_REF_FRAMES = 30         # Consecutive all-empty frames before auto re-ref
 REF_EMA_ALPHA = 0.05         # EMA speed for auto reference update (0=disabled)
@@ -498,7 +560,7 @@ def state_color(state):
     return (255, 255, 0)
 
 
-def sample_and_draw_cells(img, board_corners, rgb_filter, reference_rgb):
+def sample_and_draw_cells(img, board_corners, lab_filter, reference_lab):
     states = []
     samples = []
     raw_values = []
@@ -507,32 +569,32 @@ def sample_and_draw_cells(img, board_corners, rgb_filter, reference_rgb):
     cells = make_grid_cells(board_corners)
     for cell in cells:
         center, radius = incircle_geometry(cell, INCIRCLE_RADIUS_SCALE)
-        rgb, count = circle_rgb_mean(img, center[0], center[1], radius,
+        lab, count = circle_lab_mean(img, center[0], center[1], radius,
                                      RGB_SAMPLE_STEP)
         if count < MIN_RGB_SAMPLES:
-            rgb = None
-        raw_values.append(rgb)
+            lab = None
+        raw_values.append(lab)
         counts.append(count)
 
-    filtered_values = rgb_filter.update(raw_values)
+    filtered_values = lab_filter.update(raw_values)
     for index, cell in enumerate(cells):
         center, radius = incircle_geometry(cell, INCIRCLE_RADIUS_SCALE)
-        raw_rgb = raw_values[index]
-        filtered_rgb = filtered_values[index]
+        raw_lab = raw_values[index]
+        filtered_lab = filtered_values[index]
 
-        # Classify by background subtraction
-        ref_rgb = reference_rgb[index] if reference_rgb is not None else None
-        state, diff = classify_by_diff(filtered_rgb, ref_rgb)
+        # Classify by LAB background subtraction
+        ref_lab = reference_lab[index] if reference_lab is not None else None
+        state, diff = classify_by_lab(filtered_lab, ref_lab)
         states.append(state)
         diffs.append(diff)
-        samples.append((raw_rgb, filtered_rgb, ref_rgb, counts[index], state, diff))
+        samples.append((raw_lab, filtered_lab, ref_lab, counts[index], state, diff))
 
         draw_quad(img, cell, (0, 255, 255), 1)
         img.draw_circle((center[0], center[1], radius),
                         color=state_color(state), thickness=1)
         x = min(point[0] for point in cell) + 1
         y = min(point[1] for point in cell) + 1
-        if filtered_rgb is None or ref_rgb is None:
+        if filtered_lab is None or ref_lab is None:
             img.draw_string(x, y, "%d ---" % (index + 1),
                             color=(255, 255, 0), scale=2)
         else:
@@ -546,21 +608,21 @@ def print_diff_stats(samples):
     cur_parts = []
     ref_parts = []
     for index, sample in enumerate(samples):
-        raw_rgb = sample[0]
-        filtered_rgb = sample[1]
-        ref_rgb = sample[2]
+        raw_lab = sample[0]
+        filtered_lab = sample[1]
+        ref_lab = sample[2]
         diff = sample[5]
         diff_parts.append("%d:%d" % (index + 1, diff))
-        if filtered_rgb is None:
+        if filtered_lab is None:
             cur_parts.append("%d:---" % (index + 1))
         else:
-            cur_parts.append("%d:R%d,G%d,B%d" %
-                             (index + 1, filtered_rgb[0], filtered_rgb[1], filtered_rgb[2]))
-        if ref_rgb is None:
+            cur_parts.append("%d:L%d,A%d,B%d" %
+                             (index + 1, filtered_lab[0], filtered_lab[1], filtered_lab[2]))
+        if ref_lab is None:
             ref_parts.append("%d:---" % (index + 1))
         else:
-            ref_parts.append("%d:R%d,G%d,B%d" %
-                             (index + 1, ref_rgb[0], ref_rgb[1], ref_rgb[2]))
+            ref_parts.append("%d:L%d,A%d,B%d" %
+                             (index + 1, ref_lab[0], ref_lab[1], ref_lab[2]))
     print("差异 " + " | ".join(diff_parts))
     print("当前 " + " | ".join(cur_parts))
     print("参考 " + " | ".join(ref_parts))
@@ -616,7 +678,7 @@ try:
 
     clock = time.clock()
     debouncer = BoardDebouncer(BOARD_STABLE_FRAMES)
-    rgb_filter = RGBMedianFilter(9, RGB_FILTER_WINDOW)
+    lab_filter = LABMedianFilter(9, RGB_FILTER_WINDOW)
     locked_board = None
     candidate_board = None
     candidate_count = 0
@@ -625,13 +687,13 @@ try:
     last_printed_board = None
     settle_remaining = 0
 
-    # ---- Background subtraction state ----
-    reference_rgb = None         # 9-tuple of (r,g,b) reference for each cell
+    # ---- LAB reference state ----
+    reference_lab = None         # 9-tuple of (L,A,B) reference for each cell
     ref_buffer = []              # multi-frame buffer during reference capture
     capturing_reference = False  # True while collecting reference frames
     all_empty_count = 0          # consecutive all-empty frames for auto re-ref
 
-    print("K230 CanMV 背景减法井字棋启动")
+    print("K230 CanMV LAB背景减法井字棋启动")
     print("编码: 0=空, 1=白, 2=黑, -1=未知")
 
     while True:
@@ -659,7 +721,7 @@ try:
                     locked_board = candidate_board[:]
                     validation_misses = 0
                     debouncer.reset()
-                    rgb_filter.reset()
+                    lab_filter.reset()
                     last_printed_board = None
                     settle_remaining = EXPOSURE_SETTLE_FRAMES
                     print("棋盘已锁定", locked_board)
@@ -680,12 +742,12 @@ try:
                 locked_board = None
                 candidate_board = None
                 candidate_count = 0
-                reference_rgb = None
+                reference_lab = None
                 capturing_reference = False
                 ref_buffer = []
                 all_empty_count = 0
                 debouncer.reset()
-                rgb_filter.reset()
+                lab_filter.reset()
                 enable_auto_camera()
             Display.show_image(img)
             gc.collect()
@@ -699,13 +761,13 @@ try:
             locked_board = blend_corners(locked_board, found, 0.65)
         elif movement <= MAX_TRACK_JUMP:
             locked_board = found[:]
-            rgb_filter.reset()
+            lab_filter.reset()
             debouncer.reset()
         else:
             # A valid grid that moved far must be followed immediately, not sampled
             # with stale corners. Geometry/density filtering already rejected solids.
             locked_board = found[:]
-            rgb_filter.reset()
+            lab_filter.reset()
             debouncer.reset()
 
         # Let exposure/gain/white balance adapt to the locked white board first.
@@ -716,7 +778,7 @@ try:
             settle_remaining -= 1
             if settle_remaining == 0:
                 freeze_camera()
-                rgb_filter.reset()
+                lab_filter.reset()
                 debouncer.reset()
                 # Start reference capture on next frame
                 capturing_reference = True
@@ -728,7 +790,7 @@ try:
 
         # ---- Reference capture phase ----
         if capturing_reference:
-            frame_refs = capture_reference_rgb(img, locked_board)
+            frame_refs = capture_reference_lab(img, locked_board)
             ref_buffer.append(frame_refs)
             draw_quad(img, locked_board, (255, 255, 0), 3)
             img.draw_string(3, 3, "REF CAP %d/%d" %
@@ -736,35 +798,35 @@ try:
                             color=(255, 255, 0), scale=2)
             if len(ref_buffer) >= REFERENCE_FRAMES:
                 # Take per-cell median across frames as reference
-                reference_rgb = []
+                reference_lab = []
                 for cell_idx in range(9):
-                    cell_rgbs = [buf[cell_idx] for buf in ref_buffer
+                    cell_labs = [buf[cell_idx] for buf in ref_buffer
                                  if buf[cell_idx] is not None]
-                    if not cell_rgbs:
-                        reference_rgb.append(None)
+                    if not cell_labs:
+                        reference_lab.append(None)
                         continue
-                    rs = sorted(r[0] for r in cell_rgbs)
-                    gs = sorted(r[1] for r in cell_rgbs)
-                    bs = sorted(r[2] for r in cell_rgbs)
-                    mid = len(cell_rgbs) // 2
-                    reference_rgb.append((rs[mid], gs[mid], bs[mid]))
+                    Ls = sorted(r[0] for r in cell_labs)
+                    As = sorted(r[1] for r in cell_labs)
+                    Bs = sorted(r[2] for r in cell_labs)
+                    mid = len(cell_labs) // 2
+                    reference_lab.append((Ls[mid], As[mid], Bs[mid]))
                 capturing_reference = False
                 ref_buffer = []
                 all_empty_count = 0
                 print("参考已采集")
                 ref_parts = []
-                for idx, rgb in enumerate(reference_rgb):
-                    if rgb is None:
+                for idx, lab in enumerate(reference_lab):
+                    if lab is None:
                         ref_parts.append("%d:---" % (idx + 1))
                     else:
-                        ref_parts.append("%d:R%d,G%d,B%d" %
-                                         (idx + 1, rgb[0], rgb[1], rgb[2]))
-                print("参考RGB " + " | ".join(ref_parts))
+                        ref_parts.append("%d:L%d,A%d,B%d" %
+                                         (idx + 1, lab[0], lab[1], lab[2]))
+                print("参考LAB " + " | ".join(ref_parts))
             Display.show_image(img)
             gc.collect()
             continue
 
-        if reference_rgb is None:
+        if reference_lab is None:
             # Should not normally reach here, but guard
             draw_quad(img, locked_board, (255, 255, 0), 3)
             img.draw_string(3, 3, "WAIT REF...",
@@ -774,7 +836,7 @@ try:
             continue
 
         raw_board, samples, diffs = sample_and_draw_cells(
-            img, locked_board, rgb_filter, reference_rgb)
+            img, locked_board, lab_filter, reference_lab)
         stable_board = debouncer.update(raw_board)
         draw_quad(img, locked_board, (0, 255, 0), 3)
         status_line = "GRID OK %d" % (clock.fps())
@@ -782,16 +844,16 @@ try:
                         color=(0, 255, 0), scale=2)
 
         # ---- Auto re-reference: slow EMA when all 9 cells are EMPTY ----
-        if all(s == EMPTY for s in raw_board) and all(d < DIFF_THRESHOLD
+        if all(s == EMPTY for s in raw_board) and all(d < LAB_EMPTY_THRESHOLD
                                                        for d in diffs):
             all_empty_count += 1
             if all_empty_count >= AUTO_REF_FRAMES and REF_EMA_ALPHA > 0:
                 # EMA update reference toward current filtered values
                 for idx in range(9):
-                    cur = samples[idx][1]  # filtered_rgb
-                    ref = reference_rgb[idx]
+                    cur = samples[idx][1]  # filtered_lab
+                    ref = reference_lab[idx]
                     if cur is not None and ref is not None:
-                        reference_rgb[idx] = (
+                        reference_lab[idx] = (
                             int(round(ref[0] * (1 - REF_EMA_ALPHA) +
                                       cur[0] * REF_EMA_ALPHA)),
                             int(round(ref[1] * (1 - REF_EMA_ALPHA) +
