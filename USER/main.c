@@ -85,10 +85,8 @@ int main(void)
             if (planner.running) {
                 Planner_Tick();
             }
+            TestGrab_Tick();
         }
-
-        /* ---- 抓取测试状态机 ---- */
-        TestGrab_Tick();
 
         /* ---- 处理上位机指令 ---- */
         if (!planner.running && cmd_type != 0) {
