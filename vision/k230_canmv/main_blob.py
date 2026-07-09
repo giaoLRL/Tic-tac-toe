@@ -27,59 +27,72 @@ def distance(a, b):
     return math.sqrt(dx * dx + dy * dy)
 
 
+# ---- Integer LAB conversion: gamma LUT only (256 ints, ~4 KB) ----
+# sRGB byte → linear value scaled by 2^12 (4096)
+_GAMMA_LUT = [0] * 256
+
+
+def _build_gamma_lut():
+    """Build sRGB gamma LUT — called once at module load."""
+    for i in range(256):
+        v = i / 255.0
+        if v <= 0.04045:
+            _GAMMA_LUT[i] = int(round((v / 12.92) * 4096))
+        else:
+            _GAMMA_LUT[i] = int(round((((v + 0.055) / 1.055) ** 2.4) * 4096))
+
+
+_build_gamma_lut()
+
+
+def _cube_root_fixed(v_scaled):
+    """Cube root f(t) for XYZ→Lab, input scaled ×4096, output scaled ×4096.
+    Uses floating ** only 3× per rgb_to_lab call (27× per frame max)."""
+    v = v_scaled / 4096.0
+    if v > 0.008856:
+        return int(round((v ** (1.0 / 3.0)) * 4096))
+    else:
+        return int(round((7.787 * v + 16.0 / 116.0) * 4096))
+
+
 def rgb_to_lab(r, g, b):
-    """Convert RGB (0-255) to CIE L*a*b* (D65 illuminant).
-    Hand-written sRGB → XYZ → Lab conversion — no cv2/numpy/skimage.
-    Returns (L, A, B) as integers: L=0..100, A=-128..127, B=-128..127.
-    """
-    # Step 1: Normalize to [0, 1]
-    rr = r / 255.0
-    gg = g / 255.0
-    bb = b / 255.0
+    """RGB→LAB conversion. Gamma via LUT, cube-root inline (fast enough for 9 cells/frame)."""
+    # Step 1: sRGB → linear via gamma LUT (scaled ×4096)
+    rr = _GAMMA_LUT[r]
+    gg = _GAMMA_LUT[g]
+    bb = _GAMMA_LUT[b]
 
-    # Step 2: Inverse sRGB companding (linearize)
-    if rr <= 0.04045:
-        rr = rr / 12.92
-    else:
-        rr = ((rr + 0.055) / 1.055) ** 2.4
-    if gg <= 0.04045:
-        gg = gg / 12.92
-    else:
-        gg = ((gg + 0.055) / 1.055) ** 2.4
-    if bb <= 0.04045:
-        bb = bb / 12.92
-    else:
-        bb = ((bb + 0.055) / 1.055) ** 2.4
+    # Step 2: Linear RGB → XYZ (fixed-point matrix)
+    x = (1689 * rr + 1464 * gg +  739 * bb) >> 12
+    y = ( 871 * rr + 2929 * gg +  296 * bb) >> 12
+    z = (  79 * rr +  488 * gg + 3893 * bb) >> 12
 
-    # Step 3: Linear RGB → XYZ (sRGB D65 matrix)
-    x = 0.4124564 * rr + 0.3575761 * gg + 0.1804375 * bb
-    y = 0.2126729 * rr + 0.7151522 * gg + 0.0721750 * bb
-    z = 0.0193339 * rr + 0.1191920 * gg + 0.9503041 * bb
+    # Step 3: Normalize by D65 white point
+    x = (x << 12) // 3893    # ÷0.95047
+    # y stays as-is           # ÷1.0
+    z = (z << 12) // 4460    # ÷1.08883
 
-    # Step 4: Normalize by D65 reference white
-    x = x / 0.95047
-    y = y / 1.00000
-    z = z / 1.08883
+    # Step 4: Cube-root (inputs always in valid range, clamp for safety)
+    if x < 0: x = 0
+    if y < 0: y = 0
+    if z < 0: z = 0
+    fx = _cube_root_fixed(x)
+    fy = _cube_root_fixed(y)
+    fz = _cube_root_fixed(z)
 
-    # Step 5: XYZ → Lab
-    if x > 0.008856:
-        fx = x ** (1.0 / 3.0)
-    else:
-        fx = 7.787 * x + 16.0 / 116.0
-    if y > 0.008856:
-        fy = y ** (1.0 / 3.0)
-    else:
-        fy = 7.787 * y + 16.0 / 116.0
-    if z > 0.008856:
-        fz = z ** (1.0 / 3.0)
-    else:
-        fz = 7.787 * z + 16.0 / 116.0
+    # Step 5: f(t) → L*a*b*
+    L = (116 * fy + 2048) // 4096 - 16
+    A_val = (500 * (fx - fy) + 2048) // 4096
+    B_val = (200 * (fy - fz) + 2048) // 4096
 
-    L = max(0.0, min(100.0, 116.0 * fy - 16.0))
-    A_val = max(-128.0, min(127.0, 500.0 * (fx - fy)))
-    B_val = max(-128.0, min(127.0, 200.0 * (fy - fz)))
+    if L < 0: L = 0
+    elif L > 100: L = 100
+    if A_val < -128: A_val = -128
+    elif A_val > 127: A_val = 127
+    if B_val < -128: B_val = -128
+    elif B_val > 127: B_val = 127
 
-    return (int(round(L)), int(round(A_val)), int(round(B_val)))
+    return (L, A_val, B_val)
 
 
 def order_corners(points):
