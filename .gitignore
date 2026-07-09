@@ -6,10 +6,41 @@ __pycache__/
 *.pyc
 *.pyo
 
+# 编译产物
+Output/
+Listing/
+*.o
+*.d
+*.crf
+*.axf
+*.hex
+*.lnp
+*.plg
+*.tra
+*.htm
+*.sct
+*.map
+*.lst
+*.dep
+*.__i
+
+# Keil 工程临时文件
+*.uvgui.*
+*.uvopt
+*.bak
+*.Administrator
+
 # IDE
 .vscode/
 .idea/
+.trae/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# 其他
+Desktop.ini
