@@ -372,7 +372,7 @@ RGB_FILTER_WINDOW = 5
 
 # ---- Background subtraction parameters ----
 DIFF_THRESHOLD = 60          # Sum of |dR|+|dG|+|dB|, below = EMPTY
-DARKEN_RATIO = 0.80          # cur_brightness/ref_brightness < ratio = BLACK
+DARKEN_RATIO = 0.90          # cur_brightness/ref_brightness < ratio = BLACK
 REFERENCE_FRAMES = 3         # Frames to median-average for reference capture
 AUTO_REF_FRAMES = 30         # Consecutive all-empty frames before auto re-ref
 REF_EMA_ALPHA = 0.05         # EMA speed for auto reference update (0=disabled)
@@ -607,7 +607,7 @@ try:
     time.sleep_ms(2000)
 
     # ---- K230 CanMV display & media ----
-    Display.init(Display.ST7701, width=800, height=480, to_ide=True)
+    Display.init(Display.ST7701, width=640, height=480, to_ide=True)
     MediaManager.init()
     sensor.run()
 
